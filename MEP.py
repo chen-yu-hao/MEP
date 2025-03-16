@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # from PES import *
 # initialize_potential()
+import math
 from scipy.constants import physical_constants
 atomicMass = {
     "Mu":    0.113,
@@ -91,7 +92,7 @@ atomicMass = {
 global reactant1_atoms,reactant2_atoms,massfrac,Rinf0,number_of_transition_states,forming_bonds,breaking_bonds,forming_bond_lengths,breaking_bond_lengths,number_of_bonds,mass,get_potential
 
 def reactant1_center_of_mass(position):
-    # import numpy as np
+    # import np as np
 
     cm = np.zeros(3)
     for n in range(0, len(reactant1_atoms)):
@@ -101,7 +102,7 @@ def reactant1_center_of_mass(position):
     return cm
 
 def reactant2_center_of_mass(position):
-    # import numpy as np
+    # import np as np
 
     cm = np.zeros(3)
     for n in range(0, len(reactant2_atoms)):
@@ -124,7 +125,7 @@ def value_s0(position):
     return s0
 
 def evaluate_all(position, Natoms):
-    # import numpy as np
+    # import np as np
 
     values = np.zeros(breaking_bond_lengths.shape)
 
@@ -140,7 +141,9 @@ def evaluate_all(position, Natoms):
             Ry = position[1, atom1] - position[1, atom2]
             Rz = position[2, atom1] - position[2, atom2]
             R = np.sqrt(Rx * Rx + Ry * Ry + Rz * Rz)
-            values[n, m] += (forming_bond_lengths[n, m] - R)
+            # print(R)
+            values[n, m] += (forming_bond_lengths[n, m] - R) #############################################################waiting for changing 
+            
             # Breaking bond
             atom1 = int(breaking_bonds[n, m, 0])
             atom2 = int(breaking_bonds[n, m, 1])
@@ -149,6 +152,7 @@ def evaluate_all(position, Natoms):
             Rz = position[2, atom1] - position[2, atom2]
             R = np.sqrt(Rx * Rx + Ry * Ry + Rz * Rz)
             values[n, m] -= (breaking_bond_lengths[n, m] - R)
+            # print(values)
 
 
     return values
@@ -156,11 +160,11 @@ def evaluate_all(position, Natoms):
 def value_s1(position,Natoms):
     values=evaluate_all(position, Natoms)
 
-    s1 = np.min(np.max(values, axis=1))
+    s1 = np.max(np.min(values, axis=1))
     return s1
 
 def s1_gradient(position, Natoms):
-    # import numpy as np
+    # import np as np
 
     ds1 = np.zeros(position.shape)
 
@@ -277,7 +281,7 @@ def cal_HESSIAN_T(position):
     
     return HESSIAN
 
-def constrain_to_dividing_surface(position,momentum,xi_current,dt,maxiter=10000):
+def constrain_to_dividing_surface(position,momentum,xi_current,dt,maxiter=100000):
     mult=0
     qctemp=np.zeros(position.shape)
     for iter in range(maxiter):
@@ -315,7 +319,8 @@ def reactants(
   reactant2Atoms = [2,3],
   Rinf = (15.0,"angstrom"),
 ):
-    global reactant1_atoms,reactant2_atoms,Rinf0,massfrac,mass
+    global reactant1_atoms,reactant2_atoms,Rinf0,massfrac,mass,atoms_label
+    atoms_label=atoms
     reactant1_atoms=np.array(reactant1Atoms)-1
     reactant2_atoms=np.array(reactant2Atoms)-1
     mass=[]
@@ -342,14 +347,14 @@ def reactants(
 def cal_MEP(position,xi_list,maxin=20000,dt=10,maxiter=10000,dxi=0.0001,dt_xi=1):
     E=[]
     position_list=[]
-    number_xi=(xi_list[0]-xi_list[1])//dxi
-    print(number_xi)
+    # number_xi=(xi_list[0]-xi_list[1])//dxi
+    # print(number_xi)
     dt0=dt
     for xi_current in xi_list:
         print(xi_current,end="\r")
-        for i in range(abs(int(number_xi))):
-            # print(xi_current+(number_xi-(xi_list[0]-xi_list[1])/abs((xi_list[0]-xi_list[1]))*i)*dxi)
-            position,_= constrain_to_dividing_surface(position,0,xi_current+(number_xi-(xi_list[0]-xi_list[1])/abs((xi_list[0]-xi_list[1]))*i)*dxi,dt_xi,maxiter)
+        # for i in range(abs(int(number_xi))):
+        #     # print(xi_current+(number_xi-(xi_list[0]-xi_list[1])/abs((xi_list[0]-xi_list[1]))*i)*dxi)
+        #     position,_= constrain_to_dividing_surface(position,0,xi_current+(number_xi-(xi_list[0]-xi_list[1])/abs((xi_list[0]-xi_list[1]))*i)*dxi,dt_xi,maxiter)
         count=1
         
         # dvdx=1
@@ -359,22 +364,32 @@ def cal_MEP(position,xi_list,maxin=20000,dt=10,maxiter=10000,dxi=0.0001,dt_xi=1)
         E0=-10000.0
         dtnum=0
 
-        while ((E1-E0>=0) or (E1-E0<-1e-6)) :
+        while ((E1-E0>=0) or (E1-E0<-1e-7)) :
                 
             position0=position
             E0,dvdx,info=get_potential(position)
             dvdx=dvdx[:,:,0]
 
-            position_HESS=cal_HESSIAN_T(position).reshape([3*len(mass),3*len(mass)])
-            try:
-                HESS_I=np.linalg.inv(position_HESS)
-            except:
-                HESS_I=np.linalg.pinv(position_HESS)
-            dvdx=np.dot(HESS_I,dvdx.reshape(-1)).reshape([3,-1])
-            dvdx=dvdx*np.random.random([3,len(mass)])
+            # position_HESS=cal_HESSIAN_T(position).reshape([3*len(mass),3*len(mass)])
+            # try:
+            #     HESS_I=np.linalg.inv(position_HESS)
+            # except:
+            #     HESS_I=np.linalg.pinv(position_HESS)
+            # dvdx=np.dot(HESS_I,dvdx.reshape(-1)).reshape([3,-1])
+            # dvdx=dvdx*np.random.random([3,len(mass)])
 
             dvdx=constrain_momentum_to_dividing_surface(dvdx,SHAKE_dxi(position,xi_current))
-            position=position-dvdx*dt
+            if (np.abs(dvdx*dt).max())<5e-6:
+                if dt<1e-5:
+                    position=position-(5e-6*dvdx/np.abs(dvdx).max()+1e-5*(0.5-np.random.random(position.shape)))
+                else:
+                    position=position-5e-6*dvdx/np.abs(dvdx).max()
+            elif (np.abs(dvdx*dt).max())>5e-4:
+                position=position-5e-4*dvdx/np.abs(dvdx).max()
+            else:
+                position=position-dvdx*dt
+            # print(np.abs(dvdx*dt).max())
+            
             position,_= constrain_to_dividing_surface(position,0,xi_current,dt_xi,maxiter)
             count+=1
 
@@ -386,7 +401,7 @@ def cal_MEP(position,xi_list,maxin=20000,dt=10,maxiter=10000,dxi=0.0001,dt_xi=1)
             E1=E1[0]
             E0=E0[0]
             if E0-E1<0:
-                print(E0,E1-E0,dt,xi_current,"true")    
+                # print(E0,E1-E0,dt,xi_current,"true")    
                 # print((E1-E0>0) or (E1-E0<-1e-6))
                 dtnum+=1
                 # if dtnum==10:
@@ -397,61 +412,113 @@ def cal_MEP(position,xi_list,maxin=20000,dt=10,maxiter=10000,dxi=0.0001,dt_xi=1)
                 
                  
             else:
-                print(E0,E1-E0,dt,xi_current)
+                # print(E0,E1-E0,dt,xi_current)
                 dt=dt0
                 # print((E1-E0>0) or (E1-E0<-1e-6))
+        # if type(E0)==float:
+        if (type(E0)==np.ndarray):
+            E.append(E0[0])
+        else:
 
-        E.append(E0)
+        # else:
+            E.append(E0)
+        
+
         position_list.append(position)
     return E,position_list
 
-def TS_optimiser(TS,grid_max=1e-6,v=0.1):
-    TS_0=TS
-    g=1
-    g0=2
-    count=1
-    g_counter=0
-    import random
-    while g>grid_max:
-        TS_list=[]
-        g=[]
+def TS_optimiser(TS,grid_max=1e-6,v=0.1,randomc="True"):
+    if randomc:
+        TS_0=TS
+        g=1
+        g0=2
+        count=1
+        g_counter=0
+        import random
+        while g>grid_max:
+            TS_list=[]
+            g=[]
 
-        g.append(get_potential(TS_0)[1].max())
-        TS_list.append(TS_0)
-        TS_HESS=np.matrix(cal_HESSIAN_T(TS_0).reshape([15,15]))
-        try:
-            inverse=np.linalg.inv(TS_HESS)
-        except:
-            inverse=np.linalg.pinv(TS_HESS)
-        grid=get_potential(TS)[1][:,:,0]
-        grid_HESS=np.dot(TS_HESS.I,get_potential(TS)[1].reshape([15,1])).reshape(3,5)
-        grid0=get_potential(TS)[1].max()
-        for i in range(1000):
-            TS_0=TS_0-np.array(grid_HESS)*v*(1*np.random.random([3,5])-0.5)*random.random()
-            # TS_0=TS_0-v*(1*np.random.random([3,5])-0.5)
-            # TS_0=TS_0-np.dot(inverse,grid0*v*(1*np.random.random(15)-0.5)).reshape([3,-1])
-            # TS_0=TS_0-np.array(grid_HESS)*v*random.random()
+            g.append(get_potential(TS_0)[1].max())
+            TS_list.append(TS_0)
+            TS_HESS=np.matrix(cal_HESSIAN_T(TS_0).reshape([TS.shape[1]*3,TS.shape[1]*3]))
+            try:
+                inverse=np.linalg.inv(TS_HESS)
+            except:
+                inverse=np.linalg.pinv(TS_HESS)
+            grid=get_potential(TS)[1][:,:,0]
+            grid_HESS=np.dot(TS_HESS.I,get_potential(TS)[1].reshape([TS.shape[1]*3,1])).reshape(3,TS.shape[1])
+            grid0=get_potential(TS)[1].max()
+            for i in range(1000):
+                TS_0=TS_0-np.array(grid_HESS)*v*(1*np.random.random([3,TS.shape[1]])-0.5)*random.random()
+                # TS_0=TS_0-v*(1*np.random.random([3,5])-0.5)
+                # TS_0=TS_0-np.dot(inverse,grid0*v*(1*np.random.random(15)-0.5)).reshape([3,-1])
+                # TS_0=TS_0-np.array(grid_HESS)*v*random.random()
 
+                TS_list.append(TS_0)
+                g.append(get_potential(TS_0)[1].max())
+            g=np.array(g)
+            TS_0=TS_list[np.argmin(g)]
+            
+            g=get_potential(TS_0)[1].max()
+            if g==g0:
+                g_counter+=1
+                if g_counter==20:
+                    v=v/2
+                    g_counter=0
+            else:
+                g_counter=0
+            print("NO. %i g: %e            %e"%(count,g,v),end="\r")
+            count+=1
+            g0=g
+        TS_0=np.array(TS_0)
+        # print("transition state frequency:")
+        # print(" ".join([str(i) for i in cal_freq_cm(TS_0)]))
+        return TS_0
+    else:
+        TS_0=TS
+        g=1
+        g0=2
+        count=1
+        g_counter=0
+        import random
+        while g>grid_max:
+            TS_list=[]
+            g=[]
+
+            g.append(get_potential(TS_0)[1].max())
+            TS_list.append(TS_0)
+            TS_HESS=np.matrix(cal_HESSIAN_T(TS_0).reshape([TS.shape[1]*3,TS.shape[1]*3]))
+            try:
+                inverse=np.linalg.inv(TS_HESS)
+            except:
+                inverse=np.linalg.pinv(TS_HESS)
+            grid=get_potential(TS)[1][:,:,0]
+            grid_HESS=np.dot(TS_HESS.I,get_potential(TS)[1].reshape([TS.shape[1]*3,1])).reshape(3,TS.shape[1])
+            grid0=get_potential(TS)[1].max()
+            if np.abs(np.array(grid_HESS)*v).max()>1e-3:
+                grid_HESS=np.array(grid_HESS)/np.abs(np.array(grid_HESS)*v).max()*1e-3
+            TS_0=TS_0-np.array(grid_HESS)*v
             TS_list.append(TS_0)
             g.append(get_potential(TS_0)[1].max())
-        g=np.array(g)
-        TS_0=TS_list[np.argmin(g)]
-        
-        g=get_potential(TS_0)[1].max()
-        if g==g0:
-            g_counter+=1
-            if g_counter==20:
-                v=v/2
+            g=np.array(g)
+            TS_0=TS_list[np.argmin(g)]
+            g=get_potential(TS_0)[1].max()
+            if g==g0:
+                g_counter+=1
+                if g_counter==20:
+                    v=v/2
+                    g_counter=0
+            else:
                 g_counter=0
-        else:
-            g_counter=0
-        print("NO. %i g: %e            %e"%(count,g,v),end="\r")
-        count+=1
-        g0=g
-    TS_0=np.array(TS_0)
-    print("transition state frequency:")
-    print(" ".join([str(i) for i in cal_freq_cm(TS_0)]))
-    return TS_0
+            print("NO. %i g: %e            %e"%(count,g,v),end="\r")
+            count+=1
+            g0=g
+        TS_0=np.array(TS_0)
+        # print("transition state frequency:")
+        # print(" ".join([str(i) for i in cal_freq_cm(TS_0)]))
+        return TS_0
+
 def transitionState(
   geometry = (
    [[ 0.00353956,  0.0, 1.34353059],
@@ -479,21 +546,113 @@ def transitionState(
     for i in breakingBonds:
         dis=np.sqrt(np.sum((TS[i[0]-1]-TS[i[1]-1])**2))
         breaking_bond_lengths[0].append(dis)
-
+def xyz_print(xyz):
+    global atoms_label
+    xyz=xyz*0.529177
+    for i in range(xyz.shape[1]):
+        print(atoms_label[i],end=" ")
+        print(xyz[0,i],end=" ")
+        print(xyz[1,i],end=" ")
+        print(xyz[2,i],end=" \n")
 def equivalentTransitionState( 
     formingBonds,
     breakingBonds ):
+    
     global TS,forming_bond_lengths,breaking_bond_lengths,forming_bonds,breaking_bonds
-    forming_bond_lengths.append([])
-    breaking_bond_lengths.append([])
-    forming_bonds.append (np.array(formingBonds )-1)
+    # forming_bond_lengths.append([])
+    # breaking_bond_lengths.append([])
+    forming_bonds. append(np.array(formingBonds )-1)
     breaking_bonds.append(np.array(breakingBonds)-1)
-    for i in formingBonds:
-        dis=np.sqrt(np.sum((TS[i[0]-1]-TS[i[1]-1])**2))
-        forming_bond_lengths[-1].append(dis)
-    for i in breakingBonds:
-        dis=np.sqrt(np.sum((TS[i[0]-1]-TS[i[1]-1])**2))
-        breaking_bond_lengths[-1].append(dis)
+    # for i in formingBonds:
+    #     dis=np.sqrt(np.sum((TS[i[0]-1]-TS[i[1]-1])**2))
+    #     forming_bond_lengths[-1].append(dis)
+    # for i in breakingBonds:
+    #     dis=np.sqrt(np.sum((TS[i[0]-1]-TS[i[1]-1])**2))
+    #     breaking_bond_lengths[-1].append(dis)
+    Natoms=TS.T.shape[1]
+    mapping = {}
+    for bond1, bond2 in zip(forming_bonds[0]+1, formingBonds):
+        atom11, atom12 = bond1
+        atom21, atom22 = bond2
+        if atom11 in mapping and mapping[atom11] != atom21:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom11, mapping[atom11], atom21))
+        elif atom21 in mapping and mapping[atom21] != atom11:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom21, mapping[atom21], atom11))
+        else:
+            mapping[atom11] = atom21
+            mapping[atom21] = atom11
+        if atom12 in mapping and mapping[atom12] != atom22:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom12, mapping[atom12], atom22))
+        elif atom22 in mapping and mapping[atom22] != atom12:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom22, mapping[atom22], atom12))
+        else:
+            mapping[atom12] = atom22
+            mapping[atom22] = atom12
+    for bond1, bond2 in zip(breaking_bonds[0]+1, breakingBonds):
+        atom11, atom12 = bond1
+        atom21, atom22 = bond2
+        if atom11 in mapping and mapping[atom11] != atom21:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom11, mapping[atom11], atom21))
+        elif atom21 in mapping and mapping[atom21] != atom11:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom21, mapping[atom21], atom11))
+        else:
+            mapping[atom11] = atom21
+            mapping[atom21] = atom11
+        if atom12 in mapping and mapping[atom12] != atom22:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom12, mapping[atom12], atom22))
+        elif atom22 in mapping and mapping[atom22] != atom12:
+            raise ValueError('Inconsistent indices in equivalent transition state: {0} mapped to both {1} and {2}.'.format(atom22, mapping[atom22], atom12))
+        else:
+            mapping[atom12] = atom22
+            mapping[atom22] = atom12
+    for atom in range(1, Natoms+1):
+        if atom not in mapping:
+            mapping[atom] = atom
+    
+    geometry = np.zeros_like(TS.T)
+    # print(geometry.shape,TS.shape)
+    for atom in range(Natoms):
+        geometry[:,atom] = TS.T[:,mapping[atom+1]-1]
+    # geometry = geometry.T
+    
+    formingBonds = np.array(formingBonds, int)
+    breakingBonds = np.array(breakingBonds, int)
+    
+    
+    Nforming_bonds = formingBonds.shape[0]
+    Nbreaking_bonds =breakingBonds.shape[0]
+    
+    # print(formingBonds)
+    # print(breakingBonds)
+    formingBondLengths = np.empty(Nforming_bonds)
+    breakingBondLengths = np.empty(Nbreaking_bonds)
+    
+    for m in range(Nforming_bonds):
+        atom1 = formingBonds[m,0] - 1
+        atom2 = formingBonds[m,1] - 1
+        Rx = geometry[0,atom1] - geometry[0,atom2]
+        Ry = geometry[1,atom1] - geometry[1,atom2]
+        Rz = geometry[2,atom1] - geometry[2,atom2]
+        R = math.sqrt(Rx * Rx + Ry * Ry + Rz * Rz)
+        formingBondLengths[m] = R
+        # print(R,atom1,atom2,geometry.T)
+    forming_bond_lengths.append(formingBondLengths)
+    
+    for m in range(Nbreaking_bonds):
+        atom1 = breakingBonds[m,0] - 1
+        atom2 = breakingBonds[m,1] - 1
+        Rx = geometry[0,atom1] - geometry[0,atom2]
+        Ry = geometry[1,atom1] - geometry[1,atom2]
+        Rz = geometry[2,atom1] - geometry[2,atom2]
+        R = math.sqrt(Rx * Rx + Ry * Ry + Rz * Rz)
+        breakingBondLengths[m] = R
+    breaking_bond_lengths.append(breakingBondLengths)
+
+
+
+
+
+        
 
 def init(get_potential0):
     global TS,forming_bond_lengths,breaking_bond_lengths,forming_bonds,breaking_bonds,number_of_transition_states,number_of_bonds
@@ -569,3 +728,70 @@ def cal_freq_cm(position):
     e, q = np.linalg.eigh(proj_inv.T @ HESSIAN @ proj_inv)
     freq_cm_1 = np.sqrt(np.abs(e * E_h * 1000 * N_A / a_0**2)) / (2 * np.pi * c_0 * 100) * ((e > 0) * 2 - 1)
     return freq_cm_1
+
+def cal_Hessian_q(position):
+    
+
+    E_h = physical_constants["Hartree energy"][0]
+    a_0 = physical_constants["Bohr radius"][0]
+    N_A = physical_constants["Avogadro constant"][0]
+    c_0 = physical_constants["speed of light in vacuum"][0]
+    e_c = physical_constants["elementary charge"][0]
+    e_0 = physical_constants["electric constant"][0]
+    mu_0 = physical_constants["mag. constant"][0]
+    Natoms=position.shape[1]
+    position=position.T
+    HESSIAN=cal_HESSIAN(position)
+#     print(HESSIAN.shape)
+    for i in range(Natoms):
+        for j in range(Natoms):
+            HESSIAN[i,:,j,:]=HESSIAN[i,:,j,:]/np.sqrt(mass[i]*mass[j])
+
+    HESSIAN = HESSIAN.reshape(3 * Natoms, 3 * Natoms)
+
+    e, q = np.linalg.eigh(HESSIAN)
+    center_coord = (position * mass[:,None]).sum(axis=0) / mass.sum()
+    centered_coord = position - center_coord
+
+
+    rot_tmp = np.zeros((Natoms, 3, 3))
+    rot_tmp[:, 0, 0] =   centered_coord[:, 1]**2 + centered_coord[:, 2]**2
+    rot_tmp[:, 1, 1] =   centered_coord[:, 2]**2 + centered_coord[:, 0]**2
+    rot_tmp[:, 2, 2] =   centered_coord[:, 0]**2 + centered_coord[:, 1]**2
+    rot_tmp[:, 0, 1] = - centered_coord[:, 0] * centered_coord[:, 1]
+    rot_tmp[:, 1, 2] = - centered_coord[:, 1] * centered_coord[:, 2]
+    rot_tmp[:, 2, 0] = - centered_coord[:, 2] * centered_coord[:, 0]
+    rot_tmp[:, 1, 0] = - centered_coord[:, 0] * centered_coord[:, 1]
+    rot_tmp[:, 2, 1] = - centered_coord[:, 1] * centered_coord[:, 2]
+    rot_tmp[:, 0, 2] = - centered_coord[:, 2] * centered_coord[:, 0]
+    rot_tmp = (rot_tmp * mass[:, None, None]).sum(axis=0)
+    _, rot_eig = np.linalg.eigh(rot_tmp)
+
+    rot_coord = np.einsum("At, ts, rw -> Asrw", centered_coord, rot_eig, rot_eig)
+    proj_scr = np.zeros((Natoms, 3, 6))
+    proj_scr[:, (0, 1, 2), (0, 1, 2)] = 1
+    proj_scr[:, :, 3] = (rot_coord[:, 1, :, 2] - rot_coord[:, 2, :, 1])
+    proj_scr[:, :, 4] = (rot_coord[:, 2, :, 0] - rot_coord[:, 0, :, 2])
+    proj_scr[:, :, 5] = (rot_coord[:, 0, :, 1] - rot_coord[:, 1, :, 0])
+    proj_scr *= np.sqrt(mass)[:, None, None]
+    proj_scr.shape = (-1, 6)
+    proj_scr /= np.linalg.norm(proj_scr, axis=0)
+    e_tr, _ = np.linalg.eigh(np.dot(proj_scr.T ,np.dot(HESSIAN, proj_scr)))
+    proj_inv = np.zeros((Natoms * 3, Natoms * 3))
+    proj_inv[:, :6] = proj_scr
+    cur = 6
+    for i in range(0, Natoms * 3):
+        vec_i = np.einsum("Ai, i -> A", proj_inv[:, :cur], proj_inv[i, :cur])
+        vec_i[i] -= 1
+        if np.linalg.norm(vec_i) > 1e-11:
+            proj_inv[:, cur] = vec_i / np.linalg.norm(vec_i)
+            cur += 1
+        if cur >= Natoms * 3:
+            break
+    proj_inv = proj_inv[:, 6:]
+    e, q = np.linalg.eigh(proj_inv.T @ HESSIAN @ proj_inv)
+    freq_cm_1 = np.sqrt(np.abs(e * E_h * 1000 * N_A / a_0**2)) / (2 * np.pi * c_0 * 100) * ((e > 0) * 2 - 1)
+    q_unnormed = np.einsum("AtQ, A -> AtQ", (proj_inv @ q).reshape(Natoms, 3, (proj_inv @ q).shape[-1]), 1 / np.sqrt(mass))
+    q_unnormed = q_unnormed.reshape(-1, q_unnormed.shape[-1])
+    q_normed = q_unnormed / np.linalg.norm(q_unnormed, axis=0)
+    return q_normed,HESSIAN
